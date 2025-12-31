@@ -11,9 +11,12 @@ def main():
     
     # 1. Initialisation
     config = DBConfig.LoadDBConfig("config.json")
+    
+    # On garde les noms courts pour simplifier
     disk = DiskManager(config)
     buff = BufferManager(config, disk)
     db = DBManager(config, disk, buff)
+    
     executor = SQLExecutor(db)
 
     print(f"Données dans : {config.dbpath}")
@@ -24,11 +27,17 @@ def main():
         try:
             query = input("\nsql> ")
             if not query.strip(): continue
+            
             if query.strip().upper() == "EXIT":
                 db.SaveState()
+                
+                buff.FlushBuffers()
+                
                 disk.Finish()
-                print("Sauvegarde terminée. Bye !")
+                
+                print("Sauvegarde effectuée. Au revoir !")
                 break
+            # ======================
 
             # 3. Traitement
             cmd = parse(query)
