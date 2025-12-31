@@ -5,6 +5,8 @@ from managers.record_id import RecordId
 class Record:
     def __init__(self, values=None):
         self.values = values if values is not None else []
+        self.rid = None # Ajout TP7 : Stocke l'ID physique (PageId, SlotIdx)
+
     def __repr__(self):
         return f"Record({self.values})"
 
@@ -15,18 +17,127 @@ class Relation:
         self.disk_manager = disk_manager
         self.buffer_manager = buffer_manager
         
-        # TP5 A1: Header Page ID (Pointeur vers la page d'en-tête de la relation)
-        # Pour l'instant, on l'initialisera lors de la création effective
         self.header_page_id = None 
-
-        # Calcul de la taille d'un record
-        self.record_size = self._compute_record_size()
         
-        # TP5 A2: Calcul du nombre de slots (cases) par page
-        # Formule : PageSize >= N * (1 octet de bitmap + record_size)
-        # Donc N = PageSize / (1 + record_size)
+        # Liste pour suivre les pages de données allouées (TP7 simplifié)
+        self.allocated_pages = []
+
+        self.record_size = self._compute_record_size()
+        # Formule TP5 : N = PageSize / (1 + record_size)
         self.slot_count = self.disk_manager.config.pagesize // (1 + self.record_size)
 
+    # ==========================================
+    # TP7 : Méthode manquante (Source de votre erreur)
+    # ==========================================
+    def GetDataPages(self):
+        """Retourne la liste des pages de données de cette relation."""
+        return self.allocated_pages
+
+    # ==========================================
+    # Gestion des Pages (TP5 + TP7)
+    # ==========================================
+    def add_data_page(self) -> PageId:
+        """Alloue une nouvelle page, l'initialise et la stocke dans la liste."""
+        page_id = self.disk_manager.AllocPage()
+        
+        buff = self.buffer_manager.GetPage(page_id)
+        # Initialisation à 0 (Bitmap vide)
+        for i in range(len(buff)):
+            buff[i] = 0
+            
+        self.buffer_manager.FreePage(page_id, True)
+        
+        # IMPORTANT TP7 : On mémorise que cette page appartient à la relation
+        self.allocated_pages.append(page_id)
+        return page_id
+
+    def get_free_data_page_id(self) -> PageId:
+        """Cherche une page avec de la place. Simplification : crée toujours une nouvelle page."""
+        # Dans un SGBD complet, on parcourrait self.allocated_pages pour trouver un trou.
+        return self.add_data_page()
+
+    # ==========================================
+    # Écriture / Lecture (TP5)
+    # ==========================================
+    def write_record_to_data_page(self, record: Record, page_id: PageId) -> RecordId:
+        buff = self.buffer_manager.GetPage(page_id)
+        
+        # 1. Trouver un slot libre dans la Bitmap
+        free_slot_idx = -1
+        for i in range(self.slot_count):
+            if buff[i] == 0:
+                free_slot_idx = i
+                break
+        
+        if free_slot_idx == -1:
+            self.buffer_manager.FreePage(page_id, False)
+            raise Exception("Page pleine !")
+
+        # 2. Marquer occupé
+        buff[free_slot_idx] = 1
+        
+        # 3. Écrire les données
+        offset_start = self.slot_count 
+        position = offset_start + (free_slot_idx * self.record_size)
+        self._write_record_to_buffer(record, buff, position)
+        
+        self.buffer_manager.FreePage(page_id, True)
+        return RecordId(page_id, free_slot_idx)
+
+    def read_record_from_page(self, page_id: PageId, slot_idx: int) -> Record:
+        """Lit un record spécifique (TP7 pour le Scanner)."""
+        buff = self.buffer_manager.GetPage(page_id)
+        offset_start = self.slot_count
+        position = offset_start + (slot_idx * self.record_size)
+        
+        rec = Record()
+        self._read_from_buffer(rec, buff, position)
+        
+        self.buffer_manager.FreePage(page_id, False)
+        return rec
+
+    # ==========================================
+    # Modifications (TP7 : UPDATE / DELETE)
+    # ==========================================
+    def DeleteRecord(self, record: Record):
+        if record.rid is None:
+            raise Exception("Impossible de supprimer : RID manquant")
+        
+        page_id = record.rid.page_id
+        slot_idx = record.rid.slot_idx
+        
+        buff = self.buffer_manager.GetPage(page_id)
+        # On remet le bit à 0 dans la bitmap
+        buff[slot_idx] = 0
+        self.buffer_manager.FreePage(page_id, True)
+
+    def UpdateRecord(self, record: Record, new_values: list):
+        if record.rid is None:
+             raise Exception("Impossible d'update : RID manquant")
+             
+        page_id = record.rid.page_id
+        slot_idx = record.rid.slot_idx
+        
+        buff = self.buffer_manager.GetPage(page_id)
+        offset_start = self.slot_count
+        position = offset_start + (slot_idx * self.record_size)
+        
+        # Écrasement des données
+        temp_rec = Record(new_values)
+        self._write_record_to_buffer(temp_rec, buff, position)
+        
+        self.buffer_manager.FreePage(page_id, True)
+
+    # ==========================================
+    # API Publique
+    # ==========================================
+    def InsertRecord(self, record: Record) -> RecordId:
+        page_id = self.get_free_data_page_id()
+        return self.write_record_to_data_page(record, page_id)
+
+    # ==========================================
+    # Helpers bas niveau (TP4)
+    # ==========================================
     def _compute_record_size(self):
         size = 0
         for _, type_col in self.schema:
@@ -35,103 +146,11 @@ class Relation:
 
     def _get_column_size(self, type_col: str):
         type_col = type_col.upper()
-        if type_col == "INT" or type_col == "FLOAT":
-            return 4
-        elif "CHAR" in type_col:
-            start = type_col.find("(") + 1
-            end = type_col.find(")")
-            return int(type_col[start:end])
+        if type_col == "INT" or type_col == "FLOAT": return 4
+        if "CHAR" in type_col:
+            return int(type_col.split("(")[1].split(")")[0])
         raise ValueError(f"Type inconnu: {type_col}")
 
-    # ==========================================
-    # TP5 C2: Rajout d'une page de données vide
-    # ==========================================
-    def add_data_page(self) -> PageId:
-        """Alloue une nouvelle page et l'initialise avec une bitmap vide."""
-        page_id = self.disk_manager.AllocPage()
-        
-        # On récupère le buffer pour initialiser la page à 0 (vide)
-        buff = self.buffer_manager.GetPage(page_id)
-        
-        # Remise à zéro explicite (optionnelle si AllocPage renvoie du vide, mais plus sûre)
-        for i in range(len(buff)):
-            buff[i] = 0
-            
-        # On marque la page comme modifiée et on la libère
-        self.buffer_manager.FreePage(page_id, True)
-        return page_id
-
-    # ==========================================
-    # TP5 C3: Trouver une page avec de la place
-    # ==========================================
-    def get_free_data_page_id(self) -> PageId:
-        """
-        Cherche une page qui a un slot libre (= 0 dans la bitmap).
-        (Version simplifiée : parcourt toutes les pages.
-         Version TP5 complète : devrait utiliser la Header Page et les listes chaînées)
-        """
-        # Note: Pour ce stade, on va simplement allouer une nouvelle page à chaque fois
-        # si on ne gère pas encore la liste chaînée des pages libres.
-        # Pour respecter le TP strictement, il faudrait parcourir la liste stockée dans le HeaderPage.
-        # ICI : On simplifie pour faire marcher l'insertion -> On crée une nouvelle page.
-        return self.add_data_page()
-
-    # ==========================================
-    # TP5 C4: Écrire un Record
-    # ==========================================
-    def write_record_to_data_page(self, record: Record, page_id: PageId) -> RecordId:
-        """Trouve un slot libre dans la page, écrit le record et met à jour la bitmap."""
-        buff = self.buffer_manager.GetPage(page_id)
-        
-        # 1. Parcourir la Bitmap (les 'slot_count' premiers octets)
-        free_slot_idx = -1
-        for i in range(self.slot_count):
-            if buff[i] == 0:  # 0 signifie vide [cite: 12]
-                free_slot_idx = i
-                break
-        
-        if free_slot_idx == -1:
-            self.buffer_manager.FreePage(page_id, False)
-            raise Exception("Page pleine ! Impossible d'insérer.")
-
-        # 2. Mettre à jour la Bitmap (1 = occupé)
-        buff[free_slot_idx] = 1
-        
-        # 3. Calculer la position d'écriture
-        # Les données commencent juste après la bitmap
-        offset_start = self.slot_count 
-        position = offset_start + (free_slot_idx * self.record_size)
-        
-        # 4. Écrire les données (utilise la méthode du TP4)
-        self._write_record_to_buffer(record, buff, position)
-        
-        self.buffer_manager.FreePage(page_id, True) # True car on a modifié
-        return RecordId(page_id, free_slot_idx)
-
-    # ==========================================
-    # TP5 C5: Lire tous les records d'une page
-    # ==========================================
-    def get_records_in_data_page(self, page_id: PageId) -> list:
-        """Renvoie la liste des Records présents dans la page."""
-        records = []
-        buff = self.buffer_manager.GetPage(page_id)
-        
-        offset_start = self.slot_count
-        
-        for i in range(self.slot_count):
-            # Si le bit est à 1, il y a un record
-            if buff[i] == 1:
-                position = offset_start + (i * self.record_size)
-                rec = Record()
-                self._read_from_buffer(rec, buff, position)
-                records.append(rec)
-                
-        self.buffer_manager.FreePage(page_id, False)
-        return records
-
-    # ==========================================
-    # Méthodes bas niveau (TP4) intégrées ici
-    # ==========================================
     def _write_record_to_buffer(self, record, buff, pos):
         cursor = pos
         for i, (col_name, col_type) in enumerate(self.schema):
@@ -148,7 +167,6 @@ class Relation:
                 max_len = self._get_column_size(col_type)
                 s_bytes = str(val).encode('utf-8')[:max_len]
                 buff[cursor:cursor+len(s_bytes)] = s_bytes
-                # Padding avec des 0
                 padding = max_len - len(s_bytes)
                 if padding > 0:
                     buff[cursor+len(s_bytes):cursor+max_len] = b'\x00'*padding
@@ -174,17 +192,3 @@ class Relation:
                 values.append(val)
                 cursor += max_len
         record.values = values
-
-    # ==========================================
-    # API Publique (TP5 C7)
-    # ==========================================
-    def GetAllRecords(self):
-        """Récupère tous les records de toutes les pages de données."""
-        # TODO: Il faudra itérer sur toutes les pages allouées à cette relation
-        # Pour l'instant, c'est vide car nous n'avons pas connecté la Header Page
-        return []
-
-    def InsertRecord(self, record: Record) -> RecordId:
-        """API Haut niveau pour insérer un record."""
-        page_id = self.get_free_data_page_id()
-        return self.write_record_to_data_page(record, page_id)
