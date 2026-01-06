@@ -18,6 +18,12 @@ class SQLExecutor:
             elif action == "SELECT": return self._select(cmd)
             elif action == "DELETE": return self._delete(cmd)
             elif action == "UPDATE": return self._update(cmd)
+            elif action == "DESCRIBE_TABLE": return self._describe_table(cmd)
+            elif action == "DESCRIBE_TABLES": return self._describe_tables(cmd)
+            elif action == "DROP_TABLES": return self._drop_tables(cmd)
+
+    
+                
         except Exception as e:
             return f"Erreur d'exécution ({action}): {e}"
         return "Commande non gérée."
@@ -76,6 +82,12 @@ class SQLExecutor:
         vals = [self._convert_val(v, rel.schema[i][1]) for i, v in enumerate(cmd["values"])]
         rel.InsertRecord(Record(vals))
         return "Record inséré."
+    def _drop_tables(self, cmd):
+        # On récupère la liste des noms pour éviter erreur de modification pendant itération
+        tables_to_remove = list(self.db_manager.tables.keys())
+        for name in tables_to_remove:
+            self.db_manager.RemoveTable(name)
+        return "Toutes les tables ont été supprimées."
 
     def _import(self, cmd):
         rel = self._get_rel(cmd["table"])
@@ -122,6 +134,25 @@ class SQLExecutor:
             rel.DeleteRecord(rec)
             count += 1
         return f"Total deleted records={count}"
+    
+    def _describe_table(self, cmd):
+        rel = self.db_manager.GetTable(cmd["table"])
+        if not rel: return f"Erreur : Table {cmd['table']} introuvable."
+        
+        # Format attendu : Nom (Col1:Type1, Col2:Type2)
+        cols = ", ".join([f"{name}:{ctype}" for name, ctype in rel.schema])
+        return f"{rel.name} ({cols})"
+
+    def _describe_tables(self, cmd):
+        if not self.db_manager.tables:
+            return "Aucune table dans la base."
+        
+        lines = []
+        for name, rel in self.db_manager.tables.items():
+            # On réutilise la logique de formatage
+            cols = ", ".join([f"{n}:{t}" for n, t in rel.schema])
+            lines.append(f"{name} ({cols})")
+        return "\n".join(lines)
 
     def _update(self, cmd):
         rel = self._get_rel(cmd["table"])

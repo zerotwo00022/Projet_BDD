@@ -79,6 +79,14 @@ def parse(query: str) -> dict:
         # Gère "DELETE Table" ou "DELETE FROM Table"
         table = tks[2] if tks[1].upper() == "FROM" else tks[1]
         return {"action": "DELETE", "table": table, "where": where_clause}
+    
+    # === DESCRIBE (TP6) ===
+    # Formats acceptés : "DESCRIBE TABLES" ou "DESCRIBE TABLE Nom"
+    if action == "DESCRIBE":
+        if len(tokens) > 1 and tokens[1].upper() == "TABLES":
+            return {"action": "DESCRIBE_TABLES"}
+        elif len(tokens) > 2 and tokens[1].upper() == "TABLE":
+            return {"action": "DESCRIBE_TABLE", "table": tokens[2]}
 
     # === UPDATE ===
     # Format: UPDATE Table SET col=val [WHERE ...] [cite: 364]
@@ -100,5 +108,8 @@ def parse(query: str) -> dict:
             assigns.append((col.strip(), val.strip().strip('"').strip("'")))
             
         return {"action": "UPDATE", "table": table, "set": assigns, "where": where_clause}
+    # === DROP TABLES (TP6) ===
+    if action == "DROP" and len(tokens) > 1 and tokens[1].upper() == "TABLES":
+         return {"action": "DROP_TABLES"}
 
     raise ValueError("Commande inconnue")
