@@ -19,16 +19,14 @@ class Relation:
         
         self.header_page_id = None 
         
-        # Liste pour suivre les pages de données allouées (TP7 simplifié)
+        # Liste pour suivre les pages de données allouées (TP7)
         self.allocated_pages = []
 
         self.record_size = self._compute_record_size()
         # Formule TP5 : N = PageSize / (1 + record_size)
         self.slot_count = self.disk_manager.config.pagesize // (1 + self.record_size)
 
-    # ==========================================
-    # TP7 : Méthode manquante (Source de votre erreur)
-    # ==========================================
+    
     def GetDataPages(self):
         """Retourne la liste des pages de données de cette relation."""
         return self.allocated_pages
@@ -47,18 +45,16 @@ class Relation:
             
         self.buffer_manager.FreePage(page_id, True)
         
-        # IMPORTANT TP7 : On mémorise que cette page appartient à la relation
+        #On mémorise que cette page appartient à la relation
         self.allocated_pages.append(page_id)
         return page_id
 
     def get_free_data_page_id(self) -> PageId:
-        """Cherche une page avec de la place. Simplification : crée toujours une nouvelle page."""
-        # Dans un SGBD complet, on parcourrait self.allocated_pages pour trouver un trou.
+        """Cherche une page avec de la place"""
+        
         return self.add_data_page()
 
-    # ==========================================
-    # Écriture / Lecture (TP5)
-    # ==========================================
+  
     def write_record_to_data_page(self, record: Record, page_id: PageId) -> RecordId:
         buff = self.buffer_manager.GetPage(page_id)
         
@@ -96,9 +92,7 @@ class Relation:
         self.buffer_manager.FreePage(page_id, False)
         return rec
 
-    # ==========================================
-    # Modifications (TP7 : UPDATE / DELETE)
-    # ==========================================
+    
     def DeleteRecord(self, record: Record):
         if record.rid is None:
             raise Exception("Impossible de supprimer : RID manquant")
@@ -128,16 +122,12 @@ class Relation:
         
         self.buffer_manager.FreePage(page_id, True)
 
-    # ==========================================
-    # API Publique
-    # ==========================================
+    
     def InsertRecord(self, record: Record) -> RecordId:
         page_id = self.get_free_data_page_id()
         return self.write_record_to_data_page(record, page_id)
 
-    # ==========================================
-    # Helpers bas niveau (TP4)
-    # ==========================================
+    
     def _compute_record_size(self):
         size = 0
         for _, type_col in self.schema:

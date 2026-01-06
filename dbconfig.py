@@ -26,7 +26,4 @@ class DBConfig:
             bm_buffercount=data.get("bm_buffercount", 2),
             bm_policy=data.get("bm_policy", "LRU")
         )
-    """
-    def __repr__(self):
-        return f"<DBConfig dbpath='{self.dbpath}'>"
-        """
+   

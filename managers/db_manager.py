@@ -21,7 +21,6 @@ class DBManager:
         rel = Relation(table_name, schema, self.disk_manager, self.buffer_manager)
         
         # On peut ici initialiser une Header Page si nécessaire (TP5 A1)
-        # Pour l'instant, on laisse le header_page_id à None ou on l'initialisera à la première insertion.
         
         self.tables[table_name] = rel
         return rel
@@ -33,7 +32,6 @@ class DBManager:
     def RemoveTable(self, table_name: str):
         """Supprime une table."""
         if table_name in self.tables:
-            # Note: Idéalement, il faudrait aussi désallouer les pages du disque ici (TP6)
             del self.tables[table_name]
         else:
             raise ValueError(f"Table {table_name} introuvable.")
@@ -45,7 +43,6 @@ class DBManager:
             catalog_data[name] = {
                 "schema": rel.schema,
                 "header_page_id": rel.header_page_id,
-                # CORRECTION : On sauvegarde impérativement cette liste
                 "allocated_pages": rel.allocated_pages 
             }
         
@@ -66,7 +63,6 @@ class DBManager:
             rel = Relation(name, info["schema"], self.disk_manager, self.buffer_manager)
             rel.header_page_id = info["header_page_id"]
             
-            # CORRECTION : On restaure la liste. Si elle n'existe pas (vieux fichier), on met []
             rel.allocated_pages = info.get("allocated_pages", [])
             
             self.tables[name] = rel

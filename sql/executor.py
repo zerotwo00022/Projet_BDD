@@ -68,7 +68,6 @@ class SQLExecutor:
                     iterator = SelectOperator(iterator, [cond])
         return iterator
 
-    # --- Actions ---
     def _create(self, cmd):
         self.db_manager.CreateTable(cmd["table"], cmd["columns"])
         return f"Table {cmd['table']} créée."
@@ -117,7 +116,7 @@ class SQLExecutor:
         while True:
             rec = iterator.GetNextRecord()
             if not rec: break
-            # Format: val1 ; val2 . [cite: 315-316]
+            # Format: val1 ; val2 
             res.append(" ; ".join(str(v) for v in rec.values) + " .")
             count += 1
         
@@ -130,7 +129,7 @@ class SQLExecutor:
         while True:
             rec = iterator.GetNextRecord()
             if not rec: break
-            # IMPORTANT: Le record doit avoir son RID attaché par le Scanner
+            #Le record doit avoir son RID attaché par le Scanner
             rel.DeleteRecord(rec)
             count += 1
         return f"Total deleted records={count}"
@@ -149,7 +148,6 @@ class SQLExecutor:
         
         lines = []
         for name, rel in self.db_manager.tables.items():
-            # On réutilise la logique de formatage
             cols = ", ".join([f"{n}:{t}" for n, t in rel.schema])
             lines.append(f"{name} ({cols})")
         return "\n".join(lines)
@@ -158,7 +156,6 @@ class SQLExecutor:
         rel = self._get_rel(cmd["table"])
         iterator = self._build_iterator(rel, cmd["where"])
         
-        # Préparer les modifications
         updates = {} # {col_index: new_value}
         for col_name, val_str in cmd["set"]:
             for i, (cname, ctype) in enumerate(rel.schema):

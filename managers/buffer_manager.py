@@ -12,7 +12,7 @@ class BufferFrame:
 class BufferManager:
     def __init__(self, config, disk_manager: DiskManager):
         self.config = config
-        self.disk_manager = disk_manager  # Pointeur vers DiskManager [cite: 576]
+        self.disk_manager = disk_manager  # Pointeur vers DiskManager
         # buffer_pool : Dictionnaire {PageId: BufferFrame}
         # L'ordre d'insertion/accès dans ce dictionnaire servira à gérer le temps pour LRU/MRU.
         self.buffer_pool = {} 
@@ -42,7 +42,7 @@ class BufferManager:
         # Charger la page depuis le disque
         # On crée un nouveau bytearray de la taille d'une page
         buff = bytearray(self.config.pagesize)
-        self.disk_manager.ReadPage(page_id, buff) # [cite: 131]
+        self.disk_manager.ReadPage(page_id, buff) 
         
         # Créer la frame et l'ajouter au pool
         frame = BufferFrame(buff, page_id)

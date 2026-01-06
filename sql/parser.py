@@ -10,7 +10,7 @@ def parse(query: str) -> dict:
     action = tokens[0].upper()
 
     # === CREATE TABLE ===
-    # Format: CREATE TABLE Nom (Col:Type, ...) [cite: 170]
+    # Format: CREATE TABLE Nom (Col:Type, ...)
     if action == "CREATE" and len(tokens) > 2 and tokens[1].upper() == "TABLE":
         table_name = tokens[2]
         start = raw_query.find("(")
@@ -39,7 +39,7 @@ def parse(query: str) -> dict:
         return {"action": "INSERT", "table": table_name, "values": values}
 
     # === APPEND (CSV Import TP7) ===
-    # Format: APPEND INTO Nom ALLRECORDS (Fichier.csv) [cite: 290]
+    # Format: APPEND INTO Nom ALLRECORDS (Fichier.csv)
     if action == "APPEND":
         clean = raw_query.replace("(", " ").replace(")", " ")
         tks = clean.split()
@@ -47,7 +47,7 @@ def parse(query: str) -> dict:
             return {"action": "IMPORT_CSV", "table": tks[2], "file": tks[4]}
 
     # === SELECT ===
-    # Format: SELECT col1,col2 FROM Table [WHERE ...] [cite: 320-322]
+    # Format: SELECT col1,col2 FROM Table [WHERE ...]
     if action == "SELECT":
         where_clause = None
         main_part = raw_query
@@ -66,7 +66,7 @@ def parse(query: str) -> dict:
         except IndexError: raise ValueError("Syntaxe SELECT incorrecte")
 
     # === DELETE ===
-    # Format: DELETE FROM Table [WHERE ...] [cite: 353]
+    # Format: DELETE FROM Table [WHERE ...]
     if action == "DELETE":
         where_clause = None
         main_part = raw_query
@@ -89,7 +89,7 @@ def parse(query: str) -> dict:
             return {"action": "DESCRIBE_TABLE", "table": tokens[2]}
 
     # === UPDATE ===
-    # Format: UPDATE Table SET col=val [WHERE ...] [cite: 364]
+    # Format: UPDATE Table SET col=val [WHERE ...]
     if action == "UPDATE":
         where_clause = None
         rest = raw_query

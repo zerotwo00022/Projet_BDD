@@ -5,23 +5,23 @@ from managers.page_id import PageId
 class DiskManager:
     def __init__(self, db_config):
         self.config = db_config
-        # Chemin vers le dossier BinData [cite: 98]
+        # Chemin vers le dossier BinData
         self.bindata_path = os.path.join(self.config.dbpath, "BinData")
         os.makedirs(self.bindata_path, exist_ok=True)
 
-        # Liste des pages désallouées (libres) pour réutilisation [cite: 103]
+        # Liste des pages désallouées (libres) pour réutilisation
         self.free_pages = [] 
         
         # Initialisation (chargement de l'état si existant)
         self.Init()
 
     def AllocPage(self) -> PageId:
-        """Alloue une page : réutilise une page libre ou en crée une nouvelle[cite: 125]."""
-        # 1. Priorité : Réutiliser une page désallouée [cite: 126]
+        """Alloue une page : réutilise une page libre ou en crée une nouvelle"""
+        # 1. Priorité : Réutiliser une page désallouée
         if self.free_pages:
             return self.free_pages.pop(0)
 
-        # 2. Sinon : Créer une nouvelle page à la fin du dernier fichier [cite: 127]
+        # 2. Sinon : Créer une nouvelle page à la fin du dernier fichier
         # On cherche le fichier courant pour écrire
         for file_id in range(self.config.dm_maxfilecount):
             file_path = self.get_file_path(file_id)
@@ -36,10 +36,8 @@ class DiskManager:
             # Calculer le nombre de pages actuelles
             num_pages = file_size // self.config.pagesize
             
-            # On considère ici qu'on peut toujours ajouter à la fin du fichier courant
-            # (Dans une version avancée, on pourrait limiter la taille max par fichier)
             
-            # On "réserve" l'espace en écrivant des zéros (optionnel mais propre)
+            
             with open(file_path, "ab") as f:
                 f.write(bytearray(self.config.pagesize))
                 
@@ -48,7 +46,7 @@ class DiskManager:
         raise Exception("DiskManager : Espace disque saturé (MaxFileCount atteint)")
 
     def ReadPage(self, page_id: PageId, buff: bytearray):
-        """Lit une page du disque vers le buffer fourni[cite: 131, 132]."""
+        """Lit une page du disque vers le buffer fourni"""
         file_path = self.get_file_path(page_id.FileIdx)
         offset = page_id.PageIdx * self.config.pagesize
 
@@ -62,7 +60,7 @@ class DiskManager:
             buff[:] = data
 
     def WritePage(self, page_id: PageId, buff: bytearray):
-        """Écrit le contenu du buffer sur le disque[cite: 136, 137]."""
+        """Écrit le contenu du buffer sur le disque"""
         file_path = self.get_file_path(page_id.FileIdx)
         offset = page_id.PageIdx * self.config.pagesize
         
@@ -72,7 +70,7 @@ class DiskManager:
             f.write(buff)
 
     def DeallocPage(self, page_id: PageId):
-        """Marque une page comme libre pour réutilisation[cite: 139, 140]."""
+        """Marque une page comme libre pour réutilisation"""
         # On ajoute simplement l'ID à la liste des pages libres
         self.free_pages.append(page_id)
 
@@ -81,14 +79,14 @@ class DiskManager:
         return os.path.join(self.bindata_path, f"Data{file_idx}.bin")
 
     def Init(self):
-        """Charge l'état du DiskManager (pages libres)[cite: 141]."""
+        """Charge l'état du DiskManager (pages libres)"""
         save_path = os.path.join(self.bindata_path, "dm_save.bin")
         if os.path.exists(save_path):
             with open(save_path, "rb") as f:
                 self.free_pages = pickle.load(f)
 
     def Finish(self):
-        """Sauvegarde l'état du DiskManager (pages libres)[cite: 145]."""
+        """Sauvegarde l'état du DiskManager (pages libres)"""
         save_path = os.path.join(self.bindata_path, "dm_save.bin")
         with open(save_path, "wb") as f:
             pickle.dump(self.free_pages, f)

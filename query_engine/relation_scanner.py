@@ -24,7 +24,7 @@ class RelationScanner(IRecordIterator):
                     # Lire le record
                     record = self.relation.read_record_from_page(page_id, self.current_slot_idx)
                     
-                    # === AJOUT CRUCIAL TP7 ===
+                    
                     # On attache l'ID physique au record pour DELETE/UPDATE
                     record.rid = RecordId(page_id, self.current_slot_idx) 
                     

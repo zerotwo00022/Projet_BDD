@@ -35,11 +35,10 @@ def main():
                 
                 disk.Finish()
                 
-                print("Sauvegarde effectuée. Au revoir !")
+                print("Sauvegarde effectuée !")
                 break
-            # ======================
 
-            # 3. Traitement
+            # Traitement
             cmd = parse(query)
             result = executor.execute_command(cmd)
             print(result)
