@@ -17,24 +17,21 @@ class Condition:
                 self.val = float(self.val)
 
     def evaluate(self, rec):
-        # 1. Récupération valeur gauche
+        # Récupération valeur gauche
         val_left = rec.values[self.col_idx]
         
-        # 2. Récupération valeur droite
+        # Récupération valeur droite
         if self.rhs_is_col:
             # Si c'est Col vs Col, on va chercher la valeur dans le record à l'index stocké
             val_right = rec.values[self.val] 
             
-            # Conversion dynamique pour comparaison (si nécessaire)
-            # On suppose que val_left est déjà au bon type (stocké dans le record)
-            # Python gère bien int vs float, mais attention aux string vs int
             try:
                 if isinstance(val_left, (int, float)) and isinstance(val_right, str):
                     val_right = float(val_right)
                 elif isinstance(val_left, str) and isinstance(val_right, (int, float)):
                     val_left = float(val_left)
             except:
-                pass # Si conversion impossible, on laisse Python comparer (ou planter)
+                pass # Si conversion impossible, je laisse Python comparer
         else:
             # Sinon c'est une constante (déjà convertie dans le __init__)
             val_right = self.val
@@ -59,7 +56,7 @@ class SelectOperator(IRecordIterator):
             if rec is None:
                 return None
             
-            # Vérifie TOUTES les conditions (AND implicite)
+            # Vérifie TOUTES les conditions
             match = True
             for cond in self.conditions:
                 if not cond.evaluate(rec):

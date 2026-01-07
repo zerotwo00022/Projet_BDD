@@ -14,7 +14,7 @@ class BufferManager:
         self.config = config
         self.disk_manager = disk_manager  # Pointeur vers DiskManager
         # buffer_pool : Dictionnaire {PageId: BufferFrame}
-        # L'ordre d'insertion/accès dans ce dictionnaire servira à gérer le temps pour LRU/MRU.
+        # L'ordre d'insertion et accès dans ce dictionnaire servira à gérer le temps pour LRU/MRU.
         self.buffer_pool = {} 
 
     def GetPage(self, page_id: PageId) -> bytearray:
@@ -22,19 +22,19 @@ class BufferManager:
         Retourne le buffer correspondant à la page demandée.
         Charge la page depuis le disque si nécessaire.
         """
-        # 1. Si la page est déjà dans le pool
+        # Si la page est déjà dans le pool
         if page_id in self.buffer_pool:
             frame = self.buffer_pool[page_id]
             frame.pin_count += 1
             
             # Mise à jour de l'ordre d'accès (on le remet à la fin = "récent")
-            # Utile pour LRU et MRU pour savoir qui est le plus récent.
+            #pour savoir qui est le plus récent.
             del self.buffer_pool[page_id]
             self.buffer_pool[page_id] = frame
             
             return frame.data
 
-        # 2. Si la page n'est pas dans le pool
+        # Si la page n'est pas dans le pool
         # Vérifier s'il reste de la place, sinon évincer une page
         if len(self.buffer_pool) >= self.config.bm_buffercount:
             self._evict_page()

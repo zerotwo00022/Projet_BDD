@@ -15,11 +15,7 @@ class SQLExecutor:
             if action == "CREATE_TABLE": return self._create(cmd)
             elif action == "DROP_TABLE": return self._drop(cmd)
             elif action == "INSERT": return self._insert(cmd)
-            
-            # --- MODIFICATION ICI (Pour lier le parser APPEND à la méthode _import) ---
-            elif action == "APPEND": return self._import(cmd) 
-            # -------------------------------------------------------------------------
-            
+            elif action == "APPEND": return self._import(cmd)             
             elif action == "SELECT": return self._select(cmd)
             elif action == "DELETE": return self._delete(cmd)
             elif action == "UPDATE": return self._update(cmd)
@@ -68,7 +64,7 @@ class SQLExecutor:
             op = match[1].strip()
             right_raw = match[2].strip()
             
-            # 1. Est-ce que la gauche est une colonne ?
+            # Est-ce que la gauche est une colonne ?
             col_left_name = self._resolve_col(left_raw, rel.name, alias)
             left_idx = -1
             for i, (cname, ctype) in enumerate(rel.schema):
@@ -77,7 +73,7 @@ class SQLExecutor:
                     left_type = ctype.split('(')[0] # INT, FLOAT, ...
                     break
             
-            # 2. Est-ce que la droite est une colonne ?
+            # Est-ce que la droite est une colonne ?
             col_right_name = self._resolve_col(right_raw, rel.name, alias)
             right_idx = -1
             for i, (cname, ctype) in enumerate(rel.schema):
@@ -123,11 +119,10 @@ class SQLExecutor:
     def _insert(self, cmd):
         rel = self._get_rel(cmd["table"])
         
-        # SÉCURITÉ : Vérifier que le nombre de valeurs correspond au nombre de colonnes
+        #Vérifier que le nombre de valeurs correspond au nombre de colonnes
         if len(cmd["values"]) != len(rel.schema):
             raise ValueError(f"Erreur: La table '{rel.name}' attend {len(rel.schema)} colonnes, mais {len(cmd['values'])} valeurs fournies.")
             
-        # ... suite du code d'insertion ...
         vals = [self._convert_val(v, rel.schema[i][1]) for i, v in enumerate(cmd["values"])]
         rel.InsertRecord(Record(vals))
         return "Record inséré."
@@ -142,14 +137,12 @@ class SQLExecutor:
         rel = self._get_rel(cmd["table"])
         filename = cmd["file"]
         
-        # 1. Protection fichier introuvable
         if not os.path.exists(filename):
             return f"Erreur : Le fichier {filename} est introuvable."
 
         count = 0
         try:
             # On tente de détecter si c'est des virgules ou points-virgules
-            # (Optionnel, mais aide si le CSV est bizarre)
             delimiter = ','
             with open(filename, 'r', encoding='utf-8') as f:
                 first_line = f.readline()
@@ -160,14 +153,13 @@ class SQLExecutor:
                 reader = csv.reader(f, delimiter=delimiter)
                 
                 for row in reader:
-                    # 2. PROTECTION : Ignorer les lignes vides
+                    # Ignorer les lignes vides
                     if not row:
                         continue
                         
-                    # 3. PROTECTION : Ignorer les lignes qui n'ont pas le bon nombre de colonnes
-                    # C'est ça qui causait votre "list index out of range"
+                    #Ignorer les lignes qui n'ont pas le bon nombre de colonnes
                     if len(row) != len(rel.schema):
-                        # On peut print(f"Ligne ignorée : {row}") pour debug si besoin
+                        # print(f"Ligne ignorée : {row}") 
                         continue
 
                     try:
@@ -176,13 +168,13 @@ class SQLExecutor:
                         rel.InsertRecord(Record(vals))
                         count += 1
                     except Exception as e:
-                        # Si une conversion échoue (ex: texte dans un INT), on ignore la ligne
+                        # Si une conversion échoueon ignore la ligne
                         continue
                         
         except Exception as e:
             return f"Erreur critique lors de l'import : {str(e)}"
 
-        # 4. Format attendu par la prof (selon Scen3)
+        # Format attendu 
         return f"Total records loaded={count}"
 
    
@@ -253,7 +245,6 @@ class SQLExecutor:
             cols = ", ".join([f"{n}:{t}" for n, t in rel.schema])
             lines.append(f"{name} ({cols})")
             
-        # --- MODIFICATION ICI (Ajout du compteur final) ---
         return "\n".join(lines) + f"\n{count} tables"
 
     def _update(self, cmd):

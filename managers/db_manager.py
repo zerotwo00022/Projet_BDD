@@ -7,8 +7,7 @@ class DBManager:
         self.config = config
         self.disk_manager = disk_manager
         self.buffer_manager = buffer_manager
-        self.tables = {}  # Stocke les objets Relation : { "NomTable": RelationObject }
-        
+        self.tables = {}  # Stocke les objets Relation 
         # Charge les tables existantes au démarrage
         self.LoadState()
 
@@ -20,7 +19,6 @@ class DBManager:
         # Création de la relation
         rel = Relation(table_name, schema, self.disk_manager, self.buffer_manager)
         
-        # On peut ici initialiser une Header Page si nécessaire (TP5 A1)
         
         self.tables[table_name] = rel
         return rel

@@ -5,7 +5,7 @@ from managers.record_id import RecordId
 class Record:
     def __init__(self, values=None):
         self.values = values if values is not None else []
-        self.rid = None # Ajout TP7 : Stocke l'ID physique (PageId, SlotIdx)
+        self.rid = None #  TP7 Stocke l'ID physique (PageId, SlotIdx)
 
     def __repr__(self):
         return f"Record({self.values})"
@@ -19,11 +19,11 @@ class Relation:
         
         self.header_page_id = None 
         
-        # Liste pour suivre les pages de données allouées (TP7)
+        # Liste pour suivre les pages de données allouées
         self.allocated_pages = []
 
         self.record_size = self._compute_record_size()
-        # Formule TP5 : N = PageSize / (1 + record_size)
+        # Formule  : N = PageSize / (1 + record_size)
         self.slot_count = self.disk_manager.config.pagesize // (1 + self.record_size)
 
     
@@ -31,9 +31,7 @@ class Relation:
         """Retourne la liste des pages de données de cette relation."""
         return self.allocated_pages
 
-    # ==========================================
     # Gestion des Pages (TP5 + TP7)
-    # ==========================================
     def add_data_page(self) -> PageId:
         """Alloue une nouvelle page, l'initialise et la stocke dans la liste."""
         page_id = self.disk_manager.AllocPage()
@@ -58,7 +56,7 @@ class Relation:
     def write_record_to_data_page(self, record: Record, page_id: PageId) -> RecordId:
         buff = self.buffer_manager.GetPage(page_id)
         
-        # 1. Trouver un slot libre dans la Bitmap
+        # Trouver un slot libre dans la Bitmap
         free_slot_idx = -1
         for i in range(self.slot_count):
             if buff[i] == 0:
@@ -69,10 +67,10 @@ class Relation:
             self.buffer_manager.FreePage(page_id, False)
             raise Exception("Page pleine !")
 
-        # 2. Marquer occupé
+        # Marquer occupé
         buff[free_slot_idx] = 1
         
-        # 3. Écrire les données
+        # Écrire les données
         offset_start = self.slot_count 
         position = offset_start + (free_slot_idx * self.record_size)
         self._write_record_to_buffer(record, buff, position)
@@ -81,7 +79,7 @@ class Relation:
         return RecordId(page_id, free_slot_idx)
 
     def read_record_from_page(self, page_id: PageId, slot_idx: int) -> Record:
-        """Lit un record spécifique (TP7 pour le Scanner)."""
+        """Lit un record spécifique"""
         buff = self.buffer_manager.GetPage(page_id)
         offset_start = self.slot_count
         position = offset_start + (slot_idx * self.record_size)

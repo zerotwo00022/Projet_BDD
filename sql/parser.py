@@ -34,29 +34,28 @@ def parse(query: str) -> dict:
     if action == "INSERT":
         # Format attendu: INSERT INTO Table VALUES (val1, val2, ...)
         try:
-            # 1. On sépare sur le mot clé "VALUES" (insensible à la casse)
+            # On sépare sur le mot clé "VALUES" 
             parts = re.split(r'VALUES', raw_query, flags=re.IGNORECASE)
             if len(parts) != 2:
                 raise ValueError("Syntaxe INSERT invalide (manque VALUES)")
             
-            # 2. Récupération du nom de la table (partie gauche)
-            # On enlève "INSERT" et "INTO" et on nettoie
+            #Récupération du nom de la table (partie gauche)
+            
             header = parts[0].replace("INSERT", "").replace("INTO", "").strip()
             table_name = header.split()[0] # Le premier mot est la table
             
-            # 3. Récupération des valeurs (partie droite)
+            # Récupération des valeurs (partie droite)
             values_part = parts[1].strip()
             
             # On vérifie les parenthèses
             if not (values_part.startswith("(") and values_part.endswith(")")):
                 raise ValueError("Les valeurs doivent être entre parenthèses: VALUES (...)")
             
-            # On retire les parenthèses : (1, "A") -> 1, "A"
+            # On retire les parenthèses
             content = values_part[1:-1]
             
-            # 4. Découpage intelligent des valeurs par la virgule
-            # Attention : Si on a "Nom, Prénom", le split(',') simple peut bugger.
-            # Pour ce projet, on suppose des CSV simples.
+            # Découpage intelligent des valeurs par la virgule
+        
             raw_values = content.split(",")
             
             clean_values = []
@@ -75,34 +74,29 @@ def parse(query: str) -> dict:
             
         except Exception as e:
             raise ValueError(f"Erreur de parsing INSERT : {str(e)}")
-    # === APPEND (CSV Import TP7) ===
-    # Format: APPEND INTO Nom ALLRECORDS (Fichier.csv)
-    # === APPEND (Import CSV) ===
     if action == "APPEND":
         # Syntaxe attendue : APPEND INTO Table ALLRECORDS (Fichier.csv)
         try:
-            # On nettoie la requête pour faciliter le découpage
-            # On remplace les parenthèses par des espaces pour isoler le fichier
+            
             clean_query = raw_query.replace("(", " ").replace(")", " ")
             tokens = clean_query.split()
             
-            # tokens = ["APPEND", "INTO", "Table", "ALLRECORDS", "Fichier.csv"]
             
             # On cherche l'index de "INTO" pour trouver la table juste après
             if "INTO" in [t.upper() for t in tokens]:
                 into_idx = [t.upper() for t in tokens].index("INTO")
                 table_name = tokens[into_idx + 1]
             else:
-                # Si l'utilisateur a oublié INTO, on suppose que c'est le 2ème mot
-                table_name = tokens[1] # APPEND Table ...
+                
+                table_name = tokens[1] 
 
-            # Le fichier est censé être le dernier élément (ou après ALLRECORDS)
+            # Le fichier est censé être le dernier élément ou après ALLRECORDS
             filename = tokens[-1]
             
             return {
                 "action": "APPEND",
                 "table": table_name,
-                "file": filename  # <--- IMPORTANT : On utilise la clé "file" ici
+                "file": filename  
             }
             
         except Exception:
@@ -126,7 +120,7 @@ def parse(query: str) -> dict:
             table = select_tokens[from_idx+1]
             
             alias = None
-            # S'il reste un token après le nom de la table, c'est l'alias
+            # S'il reste un truc après le nom de la table, c'est l'alias
             if len(select_tokens) > from_idx + 2:
                 alias = select_tokens[from_idx + 2]
 
@@ -160,15 +154,13 @@ def parse(query: str) -> dict:
 
         return {"action": "DELETE", "table": table, "alias": alias, "where": where_clause}
     
-    # === DESCRIBE (TP6) ===
-    # Formats acceptés : "DESCRIBE TABLES" ou "DESCRIBE TABLE Nom"
+    # "DESCRIBE TABLES" ou "DESCRIBE TABLE Nom"
     if action == "DESCRIBE":
         if len(tokens) > 1 and tokens[1].upper() == "TABLES":
             return {"action": "DESCRIBE_TABLES"}
         elif len(tokens) > 2 and tokens[1].upper() == "TABLE":
             return {"action": "DESCRIBE_TABLE", "table": tokens[2]}
 
-    # === UPDATE ===
     # Format: UPDATE Table SET col=val [WHERE ...]
     if action == "UPDATE":
         where_clause = None
@@ -193,7 +185,6 @@ def parse(query: str) -> dict:
             assigns.append((col.strip(), val.strip().strip('"').strip("'")))
             
         return {"action": "UPDATE", "table": table, "alias": alias, "set": assigns, "where": where_clause}
-    # === DROP TABLES (TP6) ===
     if action == "DROP" and len(tokens) > 1 and tokens[1].upper() == "TABLES":
          return {"action": "DROP_TABLES"}
 
