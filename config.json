@@ -1,3 +1,7 @@
 {
-  "dbpath": "./databases"
+    "dbpath": "databases/DBScen3",
+    "pagesize": 4096,
+    "bm_buffercount": 2,
+    "dm_maxfilecount": 4,
+    "bm_policy": "LRU"
 }

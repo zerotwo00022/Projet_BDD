@@ -2,27 +2,50 @@ from query_engine.iterators import IRecordIterator
 from managers.relation import Record
 
 class Condition:
-    """Représente une clause WHERE (ex: age > 18)"""
-    def __init__(self, col_index, op, value, col_type):
-        self.col_index = col_index
+    def __init__(self, col_idx, op, val, type_col, rhs_is_col=False):
+        self.col_idx = col_idx
         self.op = op
-        self.value = value
-        self.col_type = col_type
+        self.val = val          # Ce sera soit la valeur brute, soit l'INDEX de la 2ème colonne
+        self.type_col = type_col
+        self.rhs_is_col = rhs_is_col # True si on compare colonne vs colonne
 
-    def evaluate(self, record: Record) -> bool:
-        val_rec = record.values[self.col_index]
+        # Si ce n'est pas une colonne à droite, on convertit la valeur tout de suite
+        if not self.rhs_is_col:
+            if self.type_col == "INT":
+                self.val = int(float(self.val))
+            elif self.type_col == "FLOAT":
+                self.val = float(self.val)
+
+    def evaluate(self, rec):
+        # 1. Récupération valeur gauche
+        val_left = rec.values[self.col_idx]
         
-        # Comparaison selon le type
-        target_val = self.value
-        if self.col_type == "INT": target_val = int(target_val)
-        elif self.col_type == "FLOAT": target_val = float(target_val)
-        
-        if self.op == "=": return val_rec == target_val
-        if self.op == ">": return val_rec > target_val
-        if self.op == "<": return val_rec < target_val
-        if self.op == ">=": return val_rec >= target_val
-        if self.op == "<=": return val_rec <= target_val
-        if self.op == "<>": return val_rec != target_val
+        # 2. Récupération valeur droite
+        if self.rhs_is_col:
+            # Si c'est Col vs Col, on va chercher la valeur dans le record à l'index stocké
+            val_right = rec.values[self.val] 
+            
+            # Conversion dynamique pour comparaison (si nécessaire)
+            # On suppose que val_left est déjà au bon type (stocké dans le record)
+            # Python gère bien int vs float, mais attention aux string vs int
+            try:
+                if isinstance(val_left, (int, float)) and isinstance(val_right, str):
+                    val_right = float(val_right)
+                elif isinstance(val_left, str) and isinstance(val_right, (int, float)):
+                    val_left = float(val_left)
+            except:
+                pass # Si conversion impossible, on laisse Python comparer (ou planter)
+        else:
+            # Sinon c'est une constante (déjà convertie dans le __init__)
+            val_right = self.val
+
+        # 3. Comparaison
+        if self.op == "=": return val_left == val_right
+        if self.op == "<>": return val_left != val_right
+        if self.op == ">": return val_left > val_right
+        if self.op == "<": return val_left < val_right
+        if self.op == ">=": return val_left >= val_right
+        if self.op == "<=": return val_left <= val_right
         return False
 
 class SelectOperator(IRecordIterator):

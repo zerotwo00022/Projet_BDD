@@ -10,7 +10,7 @@ def parse(query: str) -> dict:
     action = tokens[0].upper()
 
     # === CREATE TABLE ===
-    # Format: CREATE TABLE Nom (Col:Type, ...)
+    # Format: CREATE TABLE Nom 
     if action == "CREATE" and len(tokens) > 2 and tokens[1].upper() == "TABLE":
         table_name = tokens[2]
         start = raw_query.find("(")
@@ -30,39 +30,113 @@ def parse(query: str) -> dict:
     if action == "DROP" and len(tokens) > 2 and tokens[1].upper() == "TABLE":
         return {"action": "DROP_TABLE", "table": tokens[2]}
 
-    # === INSERT INTO ===
-    if action == "INSERT" and tokens[1].upper() == "INTO":
-        table_name = tokens[2]
-        start = raw_query.find("(")
-        end = raw_query.rfind(")")
-        values = [v.strip().strip('"').strip("'") for v in raw_query[start+1:end].split(",")]
-        return {"action": "INSERT", "table": table_name, "values": values}
-
+    # === INSERT ===
+    if action == "INSERT":
+        # Format attendu: INSERT INTO Table VALUES (val1, val2, ...)
+        try:
+            # 1. On sépare sur le mot clé "VALUES" (insensible à la casse)
+            parts = re.split(r'VALUES', raw_query, flags=re.IGNORECASE)
+            if len(parts) != 2:
+                raise ValueError("Syntaxe INSERT invalide (manque VALUES)")
+            
+            # 2. Récupération du nom de la table (partie gauche)
+            # On enlève "INSERT" et "INTO" et on nettoie
+            header = parts[0].replace("INSERT", "").replace("INTO", "").strip()
+            table_name = header.split()[0] # Le premier mot est la table
+            
+            # 3. Récupération des valeurs (partie droite)
+            values_part = parts[1].strip()
+            
+            # On vérifie les parenthèses
+            if not (values_part.startswith("(") and values_part.endswith(")")):
+                raise ValueError("Les valeurs doivent être entre parenthèses: VALUES (...)")
+            
+            # On retire les parenthèses : (1, "A") -> 1, "A"
+            content = values_part[1:-1]
+            
+            # 4. Découpage intelligent des valeurs par la virgule
+            # Attention : Si on a "Nom, Prénom", le split(',') simple peut bugger.
+            # Pour ce projet, on suppose des CSV simples.
+            raw_values = content.split(",")
+            
+            clean_values = []
+            for v in raw_values:
+                v = v.strip()
+                # On enlève les guillemets si présents
+                if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+                    v = v[1:-1]
+                clean_values.append(v)
+            
+            return {
+                "action": "INSERT",
+                "table": table_name,
+                "values": clean_values
+            }
+            
+        except Exception as e:
+            raise ValueError(f"Erreur de parsing INSERT : {str(e)}")
     # === APPEND (CSV Import TP7) ===
     # Format: APPEND INTO Nom ALLRECORDS (Fichier.csv)
+    # === APPEND (Import CSV) ===
     if action == "APPEND":
-        clean = raw_query.replace("(", " ").replace(")", " ")
-        tks = clean.split()
-        if len(tks) >= 5 and tks[3].upper() == "ALLRECORDS":
-            return {"action": "IMPORT_CSV", "table": tks[2], "file": tks[4]}
+        # Syntaxe attendue : APPEND INTO Table ALLRECORDS (Fichier.csv)
+        try:
+            # On nettoie la requête pour faciliter le découpage
+            # On remplace les parenthèses par des espaces pour isoler le fichier
+            clean_query = raw_query.replace("(", " ").replace(")", " ")
+            tokens = clean_query.split()
+            
+            # tokens = ["APPEND", "INTO", "Table", "ALLRECORDS", "Fichier.csv"]
+            
+            # On cherche l'index de "INTO" pour trouver la table juste après
+            if "INTO" in [t.upper() for t in tokens]:
+                into_idx = [t.upper() for t in tokens].index("INTO")
+                table_name = tokens[into_idx + 1]
+            else:
+                # Si l'utilisateur a oublié INTO, on suppose que c'est le 2ème mot
+                table_name = tokens[1] # APPEND Table ...
+
+            # Le fichier est censé être le dernier élément (ou après ALLRECORDS)
+            filename = tokens[-1]
+            
+            return {
+                "action": "APPEND",
+                "table": table_name,
+                "file": filename  # <--- IMPORTANT : On utilise la clé "file" ici
+            }
+            
+        except Exception:
+            raise ValueError("Syntaxe APPEND incorrecte. Attendu: APPEND INTO Table ALLRECORDS (Fichier.csv)")
 
     # === SELECT ===
     # Format: SELECT col1,col2 FROM Table [WHERE ...]
     if action == "SELECT":
         where_clause = None
         main_part = raw_query
+        # Séparation du WHERE
         if "WHERE" in raw_query.upper():
             parts = re.split(r'WHERE', raw_query, flags=re.IGNORECASE)
             main_part = parts[0]
             where_clause = parts[1].strip()
             
-        # On remplace les virgules par espaces pour simplifier le split
         select_tokens = main_part.replace(",", " ").split()
         try:
             from_idx = [i for i, t in enumerate(select_tokens) if t.upper() == "FROM"][0]
             cols = select_tokens[1:from_idx]
             table = select_tokens[from_idx+1]
-            return {"action": "SELECT", "table": table, "columns": cols, "where": where_clause}
+            
+            alias = None
+            # S'il reste un token après le nom de la table, c'est l'alias
+            if len(select_tokens) > from_idx + 2:
+                alias = select_tokens[from_idx + 2]
+
+            return {
+                "action": "SELECT", 
+                "table": table, 
+                "alias": alias,  
+                "columns": cols, 
+                "where": where_clause
+            }
         except IndexError: raise ValueError("Syntaxe SELECT incorrecte")
 
     # === DELETE ===
@@ -76,9 +150,15 @@ def parse(query: str) -> dict:
             where_clause = parts[1].strip()
         
         tks = main_part.split()
-        # Gère "DELETE Table" ou "DELETE FROM Table"
-        table = tks[2] if tks[1].upper() == "FROM" else tks[1]
-        return {"action": "DELETE", "table": table, "where": where_clause}
+        # Gestion de: DELETE FROM Table [Alias] OU DELETE Table [Alias]
+        start_idx = 2 if tks[1].upper() == "FROM" else 1
+        table = tks[start_idx]
+        
+        alias = None
+        if len(tks) > start_idx + 1:
+            alias = tks[start_idx + 1]
+
+        return {"action": "DELETE", "table": table, "alias": alias, "where": where_clause}
     
     # === DESCRIBE (TP6) ===
     # Formats acceptés : "DESCRIBE TABLES" ou "DESCRIBE TABLE Nom"
@@ -100,14 +180,19 @@ def parse(query: str) -> dict:
             
         if "SET" not in rest.upper(): raise ValueError("UPDATE nécessite SET")
         parts_set = re.split(r'SET', rest, flags=re.IGNORECASE)
-        table = parts_set[0].split()[1]
+        
+        # Extraction Table + Alias 
+        header_tks = parts_set[0].split()
+        table = header_tks[1]
+        alias = header_tks[2] if len(header_tks) > 2 else None
         
         assigns = []
         for pair in parts_set[1].split(","):
+            if "=" not in pair: continue
             col, val = pair.split("=")
             assigns.append((col.strip(), val.strip().strip('"').strip("'")))
             
-        return {"action": "UPDATE", "table": table, "set": assigns, "where": where_clause}
+        return {"action": "UPDATE", "table": table, "alias": alias, "set": assigns, "where": where_clause}
     # === DROP TABLES (TP6) ===
     if action == "DROP" and len(tokens) > 1 and tokens[1].upper() == "TABLES":
          return {"action": "DROP_TABLES"}
