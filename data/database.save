@@ -1,0 +1,46 @@
+{
+  "tables": [
+    {
+      "name": "Users",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT"
+        },
+        {
+          "name": "name",
+          "type": "CHAR(20)"
+        },
+        {
+          "name": "age",
+          "type": "INT"
+        }
+      ],
+      "header": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Products",
+      "columns": [
+        {
+          "name": "id",
+          "type": "INT"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(30)"
+        },
+        {
+          "name": "price",
+          "type": "FLOAT"
+        }
+      ],
+      "header": [
+        0,
+        2
+      ]
+    }
+  ]
+}

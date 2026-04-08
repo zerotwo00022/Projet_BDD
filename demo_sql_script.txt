@@ -1,0 +1,15 @@
+# demo_sql_script.txt
+CREATE DATABASE DBTest
+CREATE TABLE Users (id:INT, name:CHAR(15), age:INT)
+INSERT INTO Users VALUES (1, 'Alice', 25)
+INSERT INTO Users VALUES (2, 'Bob', 30)
+INSERT INTO Users VALUES (3, 'Charlie', 28)
+SELECT * FROM Users
+DESCRIBE Users
+CREATE TABLE Products (prod_id:INT, product_name:VARCHAR(20), price:FLOAT)
+INSERT INTO Products VALUES (101, 'Laptop', 999.99)
+INSERT INTO Products VALUES (102, 'Mouse', 29.99)
+INSERT INTO Products VALUES (103, 'Keyboard', 79.99)
+SELECT * FROM Products
+SHOW TABLES
+EXIT

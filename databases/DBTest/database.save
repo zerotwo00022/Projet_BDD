@@ -1,0 +1,21 @@
+{
+  "tables": [
+    {
+      "name": "ETUDIANT",
+      "columns": [
+        {
+          "name": "nom",
+          "type": "CHAR(50)"
+        },
+        {
+          "name": "prenom",
+          "type": "CHAR(50)"
+        }
+      ],
+      "header": [
+        0,
+        0
+      ]
+    }
+  ]
+}
